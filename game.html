@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>滑块下落游戏</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+
+        #score {
+            font-size: 24px;
+            margin-top: 20px;
+        }
+
+        #game-over {
+            display: none;
+            font-size: 48px;
+            margin-top: 200px;
+        }
+
+        #game-over p {
+            font-size: 24px;
+            margin-top: 50px;
+        }
+
+        button {
+            font-size: 24px;
+            margin-top: 50px;
+        }
+    </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="score"></div>
+<div id="game-over">
+    <p>得分: <span id="final-score"></span></p>
+    <button id="restart">重新开始</button>
+</div>
+
+<script>
+    // 游戏配置
+    var FPS = 60;
+    var BALL_RADIUS = 10;
+    var BALL_SPEED_MIN = 2;
+    var BALL_SPEED_MAX = 6;
+    var BALL_COLORS = ['red', 'blue'];
+    var SLIDER_WIDTH = 70;
+    var SLIDER_HEIGHT = 10;
+    var SLIDER_SPEED = 8;
+    var FONT_NAME = 'Arial';
+
+    // 游戏颜色
+    var BLACK = '#000000';
+    var WHITE = '#ffffff';
+
+    // 初始化游戏
+    var canvas = document.getElementById('game');
+    var ctx = canvas.getContext('2d');
+    var scoreEl = document.getElementById('score');
+    var gameOverEl = document.getElementById('game-over');
+    var finalScoreEl = document.getElementById('final-score');
+    var restartButton = document.getElementById('restart');
+    var slider = {
+        x: canvas.width / 2 - SLIDER_WIDTH / 2,
+        y: 800,
+        speed: 0
+    };
+    var balls = [];
+    var score = 0;
+    var gameRunning = false;
+
+    // 加载游戏资源
+    var bounceSound = new Audio('bounce.wav');
+    // var backgroundMusic = new Audio('background.mp3');
+    // backgroundMusic.loop = true;
+
+    // 定义游戏函数
+    function showStartScreen() {
+        ctx.fillStyle = BLACK;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawText('滑块下落游戏', 48, canvas.width / 2, canvas.height / 4);
+        drawText('使用左右箭头键移动滑块，接住红色物体得分，蓝色物体游戏结束。', 24, canvas.width / 2, canvas.height / 2);
+        drawText('按任意键开始游戏', 24, canvas.width / 2, canvas.height * 3 / 4);
+        document.addEventListener('keydown', startGame);
+    }
+
+    function startGame() {
+        document.removeEventListener('keydown', startGame);
+        gameRunning = true;
+        // backgroundMusic.play();
+    }
+
+    function showGameOverScreen() {
+        gameRunning = false;
+        // backgroundMusic.pause();
+        ctx.fillStyle = BLACK;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawText('游戏结束', 48, canvas.width / 2, canvas.height / 4);
+        drawText('得分: ' + score, 24, canvas.width / 2, canvas.height / 2);
+        finalScoreEl.innerText = score;
+        gameOverEl.style.display = 'block';
+        restartButton.addEventListener('click', restartGame);
+    }
+
+    function restartGame() {
+        balls = [];
+        score = 0;
+        slider.x = canvas.width / 2 - SLIDER_WIDTH / 2;
+        slider.speed = 0;
+        gameOverEl.style.display = 'none';
+        restartButton.removeEventListener('click', restartGame);
+        showStartScreen();
+    }
+
+    function drawText(text, size, x, y) {
+        ctx.font = size + 'px ' + FONT_NAME;
+        ctx.fillStyle = WHITE;
+        ctx.textAlign = 'center';
+        ctx.fillText(text, x, y);
+    }
+
+    function drawSlider() {
+        ctx.fillStyle = BLACK;
+        ctx.fillRect(slider.x, slider.y, SLIDER_WIDTH, SLIDER_HEIGHT);
+    }
+
+    function drawBall(ball) {
+        ctx.fillStyle = ball.color;
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, BALL_RADIUS, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    function updateSlider() {
+        if (slider.speed < 0 && slider.x > 0) {
+            slider.x += slider.speed;
+        } else if (slider.speed > 0 && slider.x < canvas.width - SLIDER_WIDTH) {
+            slider.x += slider.speed;
+        }
+    }
+
+    function updateBalls() {
+        for (var i = 0; i < balls.length; i++) {
+            var ball = balls[i];
+            // ball.x += ball.vx;
+            ball.y += ball.vy;
+            if (ball.y > canvas.height + BALL_RADIUS) {
+                balls.splice(i, 1);
+                i--;
+            } else if (ball.x + BALL_RADIUS > slider.x && ball.x - BALL_RADIUS < slider.x + SLIDER_WIDTH ) {
+                if (ball.color === 'red') {
+                    score += 10;
+                    bounceSound.play();
+                    balls.splice(i, 1);
+                    i--;
+                } else {
+                    // showGameOverScreen();
+                    // return;
+                }
+            }
+        }
+        if (balls.length < 10) {
+            var ball = {
+                x: Math.random() * (canvas.width - BALL_RADIUS * 2) + BALL_RADIUS,
+                y: -BALL_RADIUS,
+                vx: Math.random() * (BALL_SPEED_MAX - BALL_SPEED_MIN) + BALL_SPEED_MIN,
+                vy: Math.random() * (BALL_SPEED_MAX - BALL_SPEED_MIN) + BALL_SPEED_MIN,
+                color: BALL_COLORS[Math.floor(Math.random() * BALL_COLORS.length)]
+            };
+            balls.push(ball);
+        }
+    }
+
+    function updateScore() {
+        scoreEl.innerText = '得分: ' + score;
+    }
+
+    function clearCanvas() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function draw() {
+        clearCanvas();
+        drawSlider();
+        for (var i = 0; i < balls.length; i++) {
+            drawBall(balls[i]);
+        }
+        updateScore();
+        if (gameRunning) {
+            updateSlider();
+            updateBalls();
+        }
+        requestAnimationFrame(draw);
+    }
+
+    // 开始游戏
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    showStartScreen();
+    requestAnimationFrame(draw);
+
+    // 监听窗口大小变化
+    window.addEventListener('resize', function() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+
+    // 监听键盘事件
+    document.addEventListener('keydown', function(event) {
+        if (event.keyCode === 37) { // 左箭头键
+            slider.speed = -SLIDER_SPEED;
+        } else if (event.keyCode === 39) { // 右箭头键
+            slider.speed = SLIDER_SPEED;
+        }
+    });
+
+    document.addEventListener('keyup', function(event) {
+        if (event.keyCode === 37 || event.keyCode === 39) {
+            slider.speed = 0;
+        }
+    });
+
+    // 监听鼠标事件
+    canvas.addEventListener('mousemove', function(event) {
+        var rect = canvas.getBoundingClientRect();
+        var mouseX = event.clientX - rect.left;
+        if (mouseX < SLIDER_WIDTH / 2) {
+            slider.x = 0;
+        } else if (mouseX > canvas.width - SLIDER_WIDTH / 2) {
+            slider.x = canvas.width - SLIDER_WIDTH;
+        } else {
+            slider.x = mouseX - SLIDER_WIDTH / 2;
+        }
+    });
+
+</script>
+</body>
+</html>
